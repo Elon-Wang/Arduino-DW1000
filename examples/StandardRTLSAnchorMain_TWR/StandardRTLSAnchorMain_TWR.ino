@@ -6,9 +6,9 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 
-/* 
+/*
  * StandardRTLSAnchorMain_TWR.ino
- * 
+ *
  * This is an example master anchor in a RTLS using two way ranging ISO/IEC 24730-62_2013 messages
  */
 
@@ -16,20 +16,41 @@
 #include <DW1000NgUtils.hpp>
 #include <DW1000NgRanging.hpp>
 #include <DW1000NgRTLS.hpp>
+#include <ArduinoSTL.h>
+using namespace std::vector;
 
 typedef struct Position {
     double x;
     double y;
 } Position;
 
+typedef struct tagInfo{
+    byte short_Addr[2];
+    double range_A;
+    double range_B;
+    double range_C;
+    bool received_B = false;
+    double x,y;
+
+    void transimitPosReport() {
+        byte positionReport[] ={DATA,SHORT_SRC_AND_DEST, DW1000NgRTLS::increaseSequenceNumber(), 0,0, 0,0, 0,0, cmd*** , 0,0, 0,0, 0,0, 0,0, 0,0};
+        DW1000Ng::getNetworkId(&rangingReport[3]);
+        memcpy(&positionReport[5], short_Addr , 2);
+        DW1000Ng::getDeviceAddress(&rangingReport[7]);
+        DW1000NgUtils::writeValueToBytes(&positionReport[10], static_cast<uint16_t>((range_A*1000)), 2);
+        DW1000NgUtils::writeValueToBytes(&positionReport[12], static_cast<uint16_t>((range_B*1000)), 2);
+        DW1000NgUtils::writeValueToBytes(&positionReport[14], static_cast<uint16_t>((range_C*1000)), 2);
+        DW1000NgUtils::writeValueToBytes(&positionReport[16], static_cast<uint16_t>((x*1000)), 2);
+        DW1000NgUtils::writeValueToBytes(&positionReport[18], static_cast<uint16_t>((y*1000)), 2);
+        DW1000Ng::setTransmitData(positionReport, sizeof(positionReport));
+        DW1000Ng::startTransmit();
+    }
+} tagInfo;
+vector<tagInfo> tagList;
+
 // connection pins
-#if defined(ESP8266)
-const uint8_t PIN_SS = 15;
-#else
 const uint8_t PIN_RST = 9;
 const uint8_t PIN_SS = SS; // spi select pin
-#endif
-
 
 Position position_self = {0,0};
 Position position_B = {3,0};
@@ -87,7 +108,7 @@ void setup() {
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
     DW1000Ng::enableFrameFiltering(ANCHOR_FRAME_FILTER_CONFIG);
-    
+
     DW1000Ng::setEUI("AA:BB:CC:DD:EE:FF:00:01");
 
     DW1000Ng::setPreambleDetectionTimeout(64);
@@ -96,9 +117,9 @@ void setup() {
 
     DW1000Ng::setNetworkId(RTLS_APP_ID);
     DW1000Ng::setDeviceAddress(1);
-	
+
     DW1000Ng::setAntennaDelay(16436);
-    
+
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
     char msg[128];
@@ -109,7 +130,8 @@ void setup() {
     DW1000Ng::getPrintableNetworkIdAndShortAddress(msg);
     Serial.print("Network ID & Device Address: "); Serial.println(msg);
     DW1000Ng::getPrintableDeviceMode(msg);
-    Serial.print("Device mode: "); Serial.println(msg);    
+    Serial.print("Device mode: "); Serial.println(msg);
+    tagList.clear();
 }
 
 /* using https://math.stackexchange.com/questions/884807/find-x-location-using-3-known-x-y-location-using-trilateration */
@@ -127,6 +149,12 @@ void calculatePosition(double &x, double &y) {
     y = (C*D-A*F) / (B*D-A*E);
 }
 
+bool isNewTag(byte tag_Short_Addr){
+    for (int i = 0; i <tagList.size() ; ++i) {
+        if(tagList[i].short_Addr[0]==tag_Short_Addr[0] &&tagList[i].short_Addr[0]==tag_Short_Addr[0])
+    }
+}
+
 void loop() {
     if(DW1000NgRTLS::receiveFrame()){
         size_t recv_len = DW1000Ng::getReceivedDataLength();
@@ -135,6 +163,7 @@ void loop() {
 
 
         if(recv_data[0] == BLINK) {
+
             DW1000NgRTLS::transmitRangingInitiation(&recv_data[2], tag_shortAddress);
             DW1000NgRTLS::waitForTransmission();
 
@@ -169,5 +198,5 @@ void loop() {
         }
     }
 
-    
+
 }

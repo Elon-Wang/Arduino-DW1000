@@ -1,18 +1,18 @@
 /*
  * MIT License
- * 
+ *
  * Copyright (c) 2018 Michele Biondi, Andrea Salvatori
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -82,7 +82,7 @@ namespace DW1000NgRTLS {
         DW1000Ng::setDelayedTRX(futureTimeBytes);
         timeFinalMessageSent += DW1000Ng::getTxAntennaDelay();
 
-        byte finalMessage[] = {DATA, SHORT_SRC_AND_DEST, SEQ_NUMBER++, 0,0, 0,0, 0,0, RANGING_TAG_FINAL_RESPONSE_EMBEDDED, 
+        byte finalMessage[] = {DATA, SHORT_SRC_AND_DEST, SEQ_NUMBER++, 0,0, 0,0, 0,0, RANGING_TAG_FINAL_RESPONSE_EMBEDDED,
             0,0,0,0,0,0,0,0,0,0,0,0
         };
 
@@ -144,24 +144,16 @@ namespace DW1000NgRTLS {
                 DW1000Ng::clearReceiveTimeoutStatus();
                 return false;
             }
-            #if defined(ESP8266)
-            yield();
-            #endif
         }
         DW1000Ng::clearReceiveStatus();
         return true;
     }
 
-    static boolean waitForNextRangingStep() {
-        DW1000NgRTLS::waitForTransmission();
-        if(!DW1000NgRTLS::receiveFrame()) return false;
-        return true;
-    }
-
     RangeRequestResult tagRangeRequest() {
         DW1000NgRTLS::transmitTwrShortBlink();
-        
-        if(!DW1000NgRTLS::waitForNextRangingStep()) return {false, 0};
+        DW1000NgRTLS::waitForTransmission();
+
+        if(!DW1000NgRTLS::receiveFrame()) return {false, 0};
 
         size_t init_len = DW1000Ng::getReceivedDataLength();
         byte init_recv[init_len];
@@ -170,8 +162,6 @@ namespace DW1000NgRTLS {
         if(!(init_len > 17 && init_recv[15] == RANGING_INITIATION)) {
             return { false, 0};
         }
-
-        DW1000Ng::setDeviceAddress(DW1000NgUtils::bytesAsValue(&init_recv[16], 2));
         return { true, DW1000NgUtils::bytesAsValue(&init_recv[13], 2) };
     }
 
@@ -179,8 +169,10 @@ namespace DW1000NgRTLS {
         byte target_anchor[2];
         DW1000NgUtils::writeValueToBytes(target_anchor, anchor, 2);
         DW1000NgRTLS::transmitPoll(target_anchor);
+        DW1000NgRTLS::waitForTransmission();
+
         /* Start of poll control for range */
-        if(!DW1000NgRTLS::waitForNextRangingStep()) return {false, false, 0, 0};
+        if(!DW1000NgRTLS::receiveFrame()) return {false, false, 0, 0};
         size_t cont_len = DW1000Ng::getReceivedDataLength();
         byte cont_recv[cont_len];
         DW1000Ng::getReceivedData(cont_recv, cont_len);
@@ -188,16 +180,17 @@ namespace DW1000NgRTLS {
         if (cont_len > 10 && cont_recv[9] == ACTIVITY_CONTROL && cont_recv[10] == RANGING_CONTINUE) {
             /* Received Response to poll */
             DW1000NgRTLS::transmitFinalMessage(
-                &cont_recv[7], 
-                replyDelayUs, 
+                &cont_recv[7],
+                replyDelayUs,
                 DW1000Ng::getTransmitTimestamp(), // Poll transmit time
                 DW1000Ng::getReceiveTimestamp()  // Response to poll receive time
             );
+            DW1000NgRTLS::waitForTransmission();
         } else {
             return {false, false, 0, 0};
         }
 
-        if(!DW1000NgRTLS::waitForNextRangingStep()) return {false, false, 0, 0};
+        if(!DW1000NgRTLS::receiveFrame()) return {false, false, 0, 0};
 
         size_t act_len = DW1000Ng::getReceivedDataLength();
         byte act_recv[act_len];
@@ -221,10 +214,6 @@ namespace DW1000NgRTLS {
         while(result.success && result.next) {
             result = tagFinishRange(result.next_anchor, finalMessageDelay);
             if(!result.success) return {false , 0};
-
-            #if defined(ESP8266)
-            yield();
-            #endif
         }
 
         if(result.success && result.new_blink_rate != 0) {
@@ -239,7 +228,7 @@ namespace DW1000NgRTLS {
         RangeRequestResult request_result = DW1000NgRTLS::tagRangeRequest();
 
         if(request_result.success) {
-            
+
             RangeInfrastructureResult result = DW1000NgRTLS::tagRangeInfrastructure(request_result.target_anchor, finalMessageDelay);
 
             if(result.success)
@@ -277,12 +266,12 @@ namespace DW1000NgRTLS {
                     DW1000NgRTLS::transmitRangingConfirm(&rfinal_data[7], finishValue);
                 else
                     DW1000NgRTLS::transmitActivityFinished(&rfinal_data[7], finishValue);
-                
+
                 DW1000NgRTLS::waitForTransmission();
 
                 range = DW1000NgRanging::computeRangeAsymmetric(
                     DW1000NgUtils::bytesAsValue(rfinal_data + 10, LENGTH_TIMESTAMP), // Poll send time
-                    timePollReceived, 
+                    timePollReceived,
                     timeResponseToPoll, // Response to poll sent time
                     DW1000NgUtils::bytesAsValue(rfinal_data + 14, LENGTH_TIMESTAMP), // Response to Poll Received
                     DW1000NgUtils::bytesAsValue(rfinal_data + 18, LENGTH_TIMESTAMP), // Final Message send time
@@ -292,12 +281,11 @@ namespace DW1000NgRTLS {
                 range = DW1000NgRanging::correctRange(range);
 
                 /* In case of wrong read due to bad device calibration */
-                if(range <= 0) 
+                if(range <= 0)
                     range = 0.000001;
 
                 return {true, range};
             }
         }
     }
-
 }

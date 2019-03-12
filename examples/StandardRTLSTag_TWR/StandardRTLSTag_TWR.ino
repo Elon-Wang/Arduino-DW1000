@@ -6,9 +6,9 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 
-/* 
+/*
  * StandardRTLSTag_TWR.ino
- * 
+ *
  * This is an example tag in a RTLS using two way ranging ISO/IEC 24730-62_2013 messages
  */
 
@@ -28,6 +28,9 @@ const uint8_t PIN_RST = 9;
 #endif
 
 volatile uint32_t blink_rate = 200;
+//set EUI as identifier of tag;
+//and use the last two bytes of EUI as short address
+char EUI = "AA:BB:CC:DD:EE:FF:00:00";
 
 device_configuration_t DEFAULT_CONFIG = {
     false,
@@ -79,8 +82,11 @@ void setup() {
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
     DW1000Ng::enableFrameFiltering(TAG_FRAME_FILTER_CONFIG);
-    
-    DW1000Ng::setEUI("AA:BB:CC:DD:EE:FF:00:00");
+
+    byte eui_byte[LEN_EUI];
+    DW1000NgUtils::convertToByte(EUI,eui_byte);
+    DW1000Ng::setEUI(eui_byte);
+    DW1000Ng::setDeviceAddress(DW1000NgUtils::bytesAsValue(&eui_byte[6],2));
 
     DW1000Ng::setNetworkId(RTLS_APP_ID);
 
@@ -91,7 +97,7 @@ void setup() {
     DW1000Ng::setPreambleDetectionTimeout(15);
     DW1000Ng::setSfdDetectionTimeout(273);
     DW1000Ng::setReceiveFrameWaitTimeoutPeriod(2000);
-    
+
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
     char msg[128];
@@ -102,14 +108,15 @@ void setup() {
     DW1000Ng::getPrintableNetworkIdAndShortAddress(msg);
     Serial.print("Network ID & Device Address: "); Serial.println(msg);
     DW1000Ng::getPrintableDeviceMode(msg);
-    Serial.print("Device mode: "); Serial.println(msg);    
+    Serial.print("Device mode: "); Serial.println(msg);
 }
 
 void loop() {
     DW1000Ng::deepSleep();
     delay(blink_rate);
     DW1000Ng::spiWakeup();
-    DW1000Ng::setEUI("AA:BB:CC:DD:EE:FF:00:00");
+    DW1000Ng::setEUI(eui_byte);
+    DW1000Ng::setDeviceAddress(DW1000NgUtils::bytesAsValue(&eui_byte[6],2));
 
     RangeInfrastructureResult res = DW1000NgRTLS::tagTwrLocalize(1500);
     if(res.success)
