@@ -16,21 +16,20 @@
 #include <DW1000NgUtils.hpp>
 #include <DW1000NgRanging.hpp>
 #include <DW1000NgRTLS.hpp>
-#include <ArduinoSTL.h>
-using namespace std::vector;
 
 typedef struct Position {
     double x;
     double y;
 } Position;
 
-typedef struct tagInfo{
+struct tagInfo{
     byte short_Addr[2];
-    double range_A;
-    double range_B;
-    double range_C;
+    double range_A = 0;
+    double range_B = 0;
+    double range_C = 0;
     bool received_B = false;
-    double x,y;
+    double x = 0;
+    double y = 0;
 
     void transimitPosReport() {
         byte positionReport[] ={DATA,SHORT_SRC_AND_DEST, DW1000NgRTLS::increaseSequenceNumber(), 0,0, 0,0, 0,0, cmd*** , 0,0, 0,0, 0,0, 0,0, 0,0};
@@ -45,8 +44,9 @@ typedef struct tagInfo{
         DW1000Ng::setTransmitData(positionReport, sizeof(positionReport));
         DW1000Ng::startTransmit();
     }
-} tagInfo;
-vector<tagInfo> tagList;
+};
+tagInfo tagList[20];//TODO:change this into vector; then don't worry about the number of the tags;
+int tagNumCnt=0;
 
 // connection pins
 const uint8_t PIN_RST = 9;
@@ -131,7 +131,7 @@ void setup() {
     Serial.print("Network ID & Device Address: "); Serial.println(msg);
     DW1000Ng::getPrintableDeviceMode(msg);
     Serial.print("Device mode: "); Serial.println(msg);
-    tagList.clear();
+    tagNumCnt = 0;
 }
 
 /* using https://math.stackexchange.com/questions/884807/find-x-location-using-3-known-x-y-location-using-trilateration */
@@ -149,10 +149,16 @@ void calculatePosition(double &x, double &y) {
     y = (C*D-A*F) / (B*D-A*E);
 }
 
-bool isNewTag(byte tag_Short_Addr){
-    for (int i = 0; i <tagList.size() ; ++i) {
+int getTagNo(byte tag_Short_Addr){
+    for (int i = 0; i <tagNumCnt; ++i) {
         if(tagList[i].short_Addr[0]==tag_Short_Addr[0] &&tagList[i].short_Addr[0]==tag_Short_Addr[0])
+            return i;
     }
+    //assign the tag short address to the tagInfo;
+    tagList[tagNumCnt].short_Addr[0] = tag_Short_Addr[0];
+    tagList[tagNumCnt].short_Addr[1] = tag_Short_Addr[1];
+    tagNumCnt++;
+    return tagNumCnt-1;
 }
 
 void loop() {
@@ -160,18 +166,18 @@ void loop() {
         size_t recv_len = DW1000Ng::getReceivedDataLength();
         byte recv_data[recv_len];
         DW1000Ng::getReceivedData(recv_data, recv_len);
-
+        int tagNo = getTagNo(&recv_data[8]);
 
         if(recv_data[0] == BLINK) {
-
-            DW1000NgRTLS::transmitRangingInitiation(&recv_data[2], tag_shortAddress);
+            DW1000NgRTLS::transmitRangingInitiation(&recv_data[2], tagList[tagNo].short_Addr);
             DW1000NgRTLS::waitForTransmission();
 
             RangeAcceptResult result = DW1000NgRTLS::anchorRangeAccept(NextActivity::RANGING_CONFIRM, next_anchor);
             if(!result.success) return;
-            range_self = result.range;
+            tagList[tagNo].range_A = result.range;
 
-            String rangeString = "Range: "; rangeString += range_self; rangeString += " m";
+            String rangeString = "Tag short Address:  "; rangeString += tagList[tagNo].short_Addr;
+            rangeString += "\t Range: "; rangeString += tagList[tagNo].range_A ; rangeString += " m";
             rangeString += "\t RX power: "; rangeString += DW1000Ng::getReceivePower(); rangeString += " dBm";
             Serial.println(rangeString);
 
