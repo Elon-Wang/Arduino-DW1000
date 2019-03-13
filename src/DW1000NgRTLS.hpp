@@ -1,18 +1,18 @@
 /*
  * MIT License
- * 
+ *
  * Copyright (c) 2018 Michele Biondi, Andrea Salvatori
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -92,6 +92,7 @@ typedef struct RangeInfrastructureResult {
 typedef struct RangeAcceptResult {
     boolean success;
     double range;
+    uint16_t tag_short_address;
 } RangeAcceptResult;
 
 namespace DW1000NgRTLS {
@@ -104,22 +105,22 @@ namespace DW1000NgRTLS {
     void transmitFinalMessage(byte anchor_address[], uint16_t reply_delay, uint64_t timePollSent, uint64_t timeResponseToPollReceived);
     void transmitRangingConfirm(byte tag_short_address[], byte next_anchor[]);
     void transmitActivityFinished(byte tag_short_address[], byte blink_rate[]);
-    
+
     boolean receiveFrame();
     void waitForTransmission();
     /*** End of TWR functions ***/
-    
+
     /* Send a request range from tag to the rtls infrastructure */
     RangeRequestResult tagRangeRequest();
 
     /* Used by an anchor to accept an incoming tagRangeRequest by means of the infrastructure
-       NextActivity is used to indicate the tag what to do next after the ranging process (Activity finished is to return to blink (range request), 
+       NextActivity is used to indicate the tag what to do next after the ranging process (Activity finished is to return to blink (range request),
         Continue range is to tell the tag to range a new anchor)
        value is the value relative to the next activity (Activity finished = new blink rante, continue range = new anchor address)
     */
     RangeAcceptResult anchorRangeAccept(NextActivity next, uint16_t value);
 
-    /* Used by tag to range after range request accept of the infrastructure 
+    /* Used by tag to range after range request accept of the infrastructure
        Target anchor is given after a range request success
        Finalmessagedelay is used in the process of TWR, a value of 1500 works on 8mhz-80mhz range devices,
         you could try to decrease it to improve system performance.

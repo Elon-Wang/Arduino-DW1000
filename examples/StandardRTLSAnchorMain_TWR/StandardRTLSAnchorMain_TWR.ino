@@ -135,7 +135,7 @@ void setup() {
 }
 
 /* using https://math.stackexchange.com/questions/884807/find-x-location-using-3-known-x-y-location-using-trilateration */
-void calculatePosition(double &x, double &y) {
+void calculatePosition(double &x, double &y) {//todo: changing this 2D algorithm into 3D algorithm.
 
     /* This gives for granted that the z plane is the same for anchor and tags */
     double A = ( (-2*position_self.x) + (2*position_B.x) );
@@ -149,14 +149,13 @@ void calculatePosition(double &x, double &y) {
     y = (C*D-A*F) / (B*D-A*E);
 }
 
-int getTagNo(byte tag_Short_Addr){
+int getTagNo(byte tag_Short_Addr[]){
     for (int i = 0; i <tagNumCnt; ++i) {
-        if(tagList[i].short_Addr[0]==tag_Short_Addr[0] &&tagList[i].short_Addr[0]==tag_Short_Addr[0])
+        if(tagList[i].short_Addr[0]==tag_Short_Addr[0] && tagList[i].short_Addr[0]==tag_Short_Addr[0])
             return i;
     }
-    //assign the tag short address to the tagInfo;
-    tagList[tagNumCnt].short_Addr[0] = tag_Short_Addr[0];
-    tagList[tagNumCnt].short_Addr[1] = tag_Short_Addr[1];
+    //If it's not in the list, creat a new one and assign the information;
+    memcpy(tagList[tagNumCnt].short_Addr,tag_Short_Addr,2);
     tagNumCnt++;
     return tagNumCnt-1;
 }
@@ -166,9 +165,9 @@ void loop() {
         size_t recv_len = DW1000Ng::getReceivedDataLength();
         byte recv_data[recv_len];
         DW1000Ng::getReceivedData(recv_data, recv_len);
-        int tagNo = getTagNo(&recv_data[8]);
 
         if(recv_data[0] == BLINK) {
+            int tagNo = getTagNo(&recv_data[8]);
             DW1000NgRTLS::transmitRangingInitiation(&recv_data[2], tagList[tagNo].short_Addr);
             DW1000NgRTLS::waitForTransmission();
 
@@ -176,33 +175,32 @@ void loop() {
             if(!result.success) return;
             tagList[tagNo].range_A = result.range;
 
-            String rangeString = "Tag short Address:  "; rangeString += tagList[tagNo].short_Addr;
+            String rangeString = "Tag short Address:  "; rangeString += tagList[tagNo].short_Addr;//todo:maybe need to change the expression;
             rangeString += "\t Range: "; rangeString += tagList[tagNo].range_A ; rangeString += " m";
             rangeString += "\t RX power: "; rangeString += DW1000Ng::getReceivePower(); rangeString += " dBm";
             Serial.println(rangeString);
 
         } else if(recv_data[9] == 0x60) {
+            int tagNo = getTagNo(&recv_data[12]);
             double range = static_cast<double>(DW1000NgUtils::bytesAsValue(&recv_data[10],2) / 1000.0);
-            String rangeReportString = "Range from: "; rangeReportString += recv_data[7];
+            String rangeReportString ="Tag short Address:  "; rangeString += tagList[tagNo].short_Addr;;
+            rangeReportString += "\t Range from: "; rangeReportString += recv_data[7];
             rangeReportString += " = "; rangeReportString += range;
             Serial.println(rangeReportString);
-            if(received_B == false && recv_data[7] == anchor_b[0] && recv_data[8] == anchor_b[1]) {
-                range_B = range;
-                received_B = true;
-            } else if(received_B == true && recv_data[7] == anchor_c[0] && recv_data[8] == anchor_c[1]){
-                range_C = range;
-                double x,y;
-                calculatePosition(x,y);
+            if(tagList[tagNo].received_B == false && recv_data[7] == anchor_b[0] && recv_data[8] == anchor_b[1]) {
+                tagList[tagNo].range_B = range;
+                tagList[tagNo].received_B = true;
+            } else if(tagList[tagNo].received_B == true && recv_data[7] == anchor_c[0] && recv_data[8] == anchor_c[1]){
+                tagList[tagNo].range_C = range;
+                calculatePosition(tagList[tagNo].x,tagList[tagNo].y);
                 String positioning = "Found position - x: ";
-                positioning += x; positioning +=" y: ";
-                positioning += y;
+                positioning += tagList[tagNo].x; positioning +=" y: ";
+                positioning += tagList[tagNo].y;
                 Serial.println(positioning);
-                received_B = false;
+                tagList[tagNo].received_B = false;
             } else {
-                received_B = false;
+                tagList[tagNo].received_B = false;
             }
         }
     }
-
-
 }

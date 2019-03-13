@@ -6,9 +6,9 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 
-/* 
+/*
  * StandardRTLSAnchorB_TWR.ino
- * 
+ *
  * This is an example slave anchor in a RTLS using two way ranging ISO/IEC 24730-62_2013 messages
  */
 
@@ -69,7 +69,7 @@ void setup() {
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
     DW1000Ng::enableFrameFiltering(ANCHOR_FRAME_FILTER_CONFIG);
-    
+
     DW1000Ng::setEUI("AA:BB:CC:DD:EE:FF:00:02");
 
     DW1000Ng::setPreambleDetectionTimeout(64);
@@ -78,9 +78,9 @@ void setup() {
 
     DW1000Ng::setNetworkId(RTLS_APP_ID);
     DW1000Ng::setDeviceAddress(2);
-	
+
     DW1000Ng::setAntennaDelay(16436);
-    
+
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
     char msg[128];
@@ -92,28 +92,32 @@ void setup() {
     Serial.print("Network ID & Device Address: "); Serial.println(msg);
     DW1000Ng::getPrintableDeviceMode(msg);
     Serial.print("Device mode: "); Serial.println(msg);
-  
+
 }
 
-void transmitRangeReport() {
-    byte rangingReport[] = {DATA, SHORT_SRC_AND_DEST, DW1000NgRTLS::increaseSequenceNumber(), 0,0, 0,0, 0,0, 0x60, 0,0 };
+void transmitRangeReport(uint16_t tag_short_addr) {
+    byte rangingReport[] = {DATA, SHORT_SRC_AND_DEST, DW1000NgRTLS::increaseSequenceNumber(), 0,0, 0,0, 0,0, 0x60, 0,0 ,0,0};
     DW1000Ng::getNetworkId(&rangingReport[3]);
     memcpy(&rangingReport[5], main_anchor_address, 2);
     DW1000Ng::getDeviceAddress(&rangingReport[7]);
     DW1000NgUtils::writeValueToBytes(&rangingReport[10], static_cast<uint16_t>((range_self*1000)), 2);
+    //todo:add the short address of the tag to the message at rangingReport[12];
+    DW1000NgUtils::writeValueToBytes(&rangingReport[12], tag_short_addr, 2);
     DW1000Ng::setTransmitData(rangingReport, sizeof(rangingReport));
     DW1000Ng::startTransmit();
 }
- 
-void loop() {     
-        RangeAcceptResult result = DW1000NgRTLS::anchorRangeAccept(NextActivity::RANGING_CONFIRM, next_anchor);
-        if(result.success) {
-            delay(2); // Tweak based on your hardware
-            range_self = result.range;
-            transmitRangeReport();
 
-            String rangeString = "Range: "; rangeString += range_self; rangeString += " m";
-            rangeString += "\t RX power: "; rangeString += DW1000Ng::getReceivePower(); rangeString += " dBm";
-            Serial.println(rangeString);
-        }
+void loop() {
+    RangeAcceptResult result = DW1000NgRTLS::anchorRangeAccept(NextActivity::RANGING_CONFIRM, next_anchor);
+    if(result.success) {
+        delay(2); // Tweak based on your hardware
+        range_self = result.range;
+        transmitRangeReport(result.tag_short_address);
+
+        String rangeString = "Range: "; rangeString += range_self; rangeString += " m";
+        rangeString += "\t RX power: "; rangeString += DW1000Ng::getReceivePower(); rangeString += " dBm";
+        Serial.println(rangeString);
+        DW1000NgRTLS::waitForTransmission();
+    }
 }
+

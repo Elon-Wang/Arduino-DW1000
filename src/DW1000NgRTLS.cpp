@@ -239,7 +239,7 @@ namespace DW1000NgRTLS {
 
     RangeAcceptResult anchorRangeAccept(NextActivity next, uint16_t value) {
         double range;
-        if(!DW1000NgRTLS::receiveFrame()) return {false, 0};
+        if(!DW1000NgRTLS::receiveFrame()) return {false, 0, 0};
 
         size_t poll_len = DW1000Ng::getReceivedDataLength();
         byte poll_data[poll_len];
@@ -251,7 +251,7 @@ namespace DW1000NgRTLS {
             DW1000NgRTLS::waitForTransmission();
             uint64_t timeResponseToPoll = DW1000Ng::getTransmitTimestamp();
             delayMicroseconds(1500);
-            if(!DW1000NgRTLS::receiveFrame()) return {false, 0};
+            if(!DW1000NgRTLS::receiveFrame()) return {false, 0, 0};
 
             size_t rfinal_len = DW1000Ng::getReceivedDataLength();
             byte rfinal_data[rfinal_len];
@@ -284,7 +284,7 @@ namespace DW1000NgRTLS {
                 if(range <= 0)
                     range = 0.000001;
 
-                return {true, range};
+                return {true, range,DW1000NgUtils::bytesAsValue(&rfinal_data[7] , 2)};
             }
         }
     }
