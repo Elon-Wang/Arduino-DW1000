@@ -70,40 +70,42 @@ uint16_t next_anchor = 2;
 byte anchor_c[] = {0x03, 0x00};
 
 device_configuration_t DEFAULT_CONFIG = {
-    false,
-    true,
-    true,
-    true,
-    false,
-    SFDMode::STANDARD_SFD,
-    Channel::CHANNEL_5,
-    DataRate::RATE_850KBPS,
-    PulseFrequency::FREQ_16MHZ,
-    PreambleLength::LEN_256,
-    PreambleCode::CODE_3
+        false,
+        true,
+        true,
+        true,
+        false,
+        SFDMode::STANDARD_SFD,
+        Channel::CHANNEL_5,
+        DataRate::RATE_850KBPS,
+        PulseFrequency::FREQ_16MHZ,
+        PreambleLength::LEN_256,
+        PreambleCode::CODE_3
 };
 
 frame_filtering_configuration_t ANCHOR_FRAME_FILTER_CONFIG = {
-    false,
-    false,
-    true,
-    false,
-    false,
-    false,
-    false,
-    true /* This allows blink frames */
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true /* This allows blink frames */
 };
+
+long long  debugMillis;
 
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
     Serial.println(F("### DW1000Ng-arduino-ranging-anchorMain ###"));
     // initialize the driver
-    #if defined(ESP8266)
+#if defined(ESP8266)
     DW1000Ng::initializeNoInterrupt(PIN_SS);
-    #else
+#else
     DW1000Ng::initializeNoInterrupt(PIN_SS, PIN_RST);
-    #endif
+#endif
     Serial.println(F("DW1000Ng initialized ..."));
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
@@ -132,6 +134,8 @@ void setup() {
     DW1000Ng::getPrintableDeviceMode(msg);
     Serial.print("Device mode: "); Serial.println(msg);
     tagNumCnt = 0;
+
+    debugMillis= millis();
 }
 
 /* using https://math.stackexchange.com/questions/884807/find-x-location-using-3-known-x-y-location-using-trilateration */
@@ -161,13 +165,39 @@ int getTagNo(byte tag_Short_Addr[]){
 }
 
 void loop() {
+    /*debug code, used to print out the tagInfo;
+    while(millis() - debugMillis > 100){
+        for (int i = 0; i <tagNumCnt ; ++i) {
+            String tagInfoString = "TagNo:"; tagInfoString += i;
+            tagInfoString += "\t byte[0]:"; tagInfoString +=tagList[i].short_Addr[0] ;
+            tagInfoString += "\t byte[1]:"; tagInfoString += tagList[i].short_Addr[1] ;
+            tagInfoString += "\n range_A: "; tagInfoString += tagList[i].range_A ; tagInfoString += " m";
+            tagInfoString += "\n range_B: "; tagInfoString += tagList[i].range_B ; tagInfoString += " m";
+            tagInfoString += "\n range_c: "; tagInfoString += tagList[i].range_C ; tagInfoString += " m";
+            tagInfoString += "\n received_B: "; tagInfoString += tagList[i].received_B;
+            tagInfoString += "\n (x,y)= ("; tagInfoString += tagList[i].x;tagInfoString += ",";tagInfoString += tagList[i].y;tagInfoString +=")";
+            Serial.println(tagInfoString);
+            Serial.println( tagList[i].short_Addr[0],BIN);
+            Serial.println( tagList[i].short_Addr[1],BIN);
+        }
+        debugMillis = millis();
+    }*/
+
+    byte short_Addr[2];
+    double range_A = 0;
+    double range_B = 0;
+    double range_C = 0;
+    bool received_B = false;
+    double x = 0;
+    double y = 0;
+
     if(DW1000NgRTLS::receiveFrame()){
         size_t recv_len = DW1000Ng::getReceivedDataLength();
         byte recv_data[recv_len];
         DW1000Ng::getReceivedData(recv_data, recv_len);
 
         if(recv_data[0] == BLINK) {
-            int tagNo = getTagNo(&recv_data[8]);
+            int tagNo = getTagNo(&recv_data[2]);
             DW1000NgRTLS::transmitRangingInitiation(&recv_data[2], tagList[tagNo].short_Addr);
             DW1000NgRTLS::waitForTransmission();
 
@@ -175,7 +205,7 @@ void loop() {
             if(!result.success) return;
             tagList[tagNo].range_A = result.range;
 
-            String rangeString = "Tag short Address:  "; rangeString += tagList[tagNo].short_Addr[0];//todo:maybe need to change the expression to two bytes;
+            String rangeString = "Tag short Address:  "; rangeString += tagList[tagNo].short_Addr[1];rangeString += tagList[tagNo].short_Addr[0]//todo:maybe need to change the expression to two bytes; THE short_addr is wrong!!!
             rangeString += "\t Range: "; rangeString += tagList[tagNo].range_A ; rangeString += " m";
             rangeString += "\t RX power: "; rangeString += DW1000Ng::getReceivePower(); rangeString += " dBm";
             Serial.println(rangeString);
