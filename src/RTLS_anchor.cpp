@@ -21,14 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
 */
-
+/*
 #include <Arduino.h>
 #include "DW1000NgRTLS.hpp"
 #include "DW1000Ng.hpp"
 #include "DW1000NgUtils.hpp"
 #include "DW1000NgTime.hpp"
 #include "DW1000NgRanging.hpp"
-
+*/
 static byte SEQ_NUMBER = 0;
 
 namespace DW1000NgRTLS {

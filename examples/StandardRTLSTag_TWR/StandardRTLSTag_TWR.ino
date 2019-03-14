@@ -83,7 +83,7 @@ void setup() {
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
     DW1000Ng::enableFrameFiltering(TAG_FRAME_FILTER_CONFIG);
 
-    byte eui_byte[LEN_EUI];
+    byte eui_byte[8];
     DW1000NgUtils::convertToByte(EUI,eui_byte);
     DW1000Ng::setEUI(eui_byte);
     DW1000Ng::setDeviceAddress(DW1000NgUtils::bytesAsValue(&eui_byte[6],2));
@@ -115,6 +115,8 @@ void loop() {
     DW1000Ng::deepSleep();
     delay(blink_rate);
     DW1000Ng::spiWakeup();
+    byte eui_byte[8];
+    DW1000NgUtils::convertToByte(EUI,eui_byte);
     DW1000Ng::setEUI(eui_byte);
     DW1000Ng::setDeviceAddress(DW1000NgUtils::bytesAsValue(&eui_byte[6],2));
 

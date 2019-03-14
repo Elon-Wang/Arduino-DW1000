@@ -175,7 +175,7 @@ void loop() {
             if(!result.success) return;
             tagList[tagNo].range_A = result.range;
 
-            String rangeString = "Tag short Address:  "; rangeString += tagList[tagNo].short_Addr;//todo:maybe need to change the expression;
+            String rangeString = "Tag short Address:  "; rangeString += tagList[tagNo].short_Addr[0];//todo:maybe need to change the expression to two bytes;
             rangeString += "\t Range: "; rangeString += tagList[tagNo].range_A ; rangeString += " m";
             rangeString += "\t RX power: "; rangeString += DW1000Ng::getReceivePower(); rangeString += " dBm";
             Serial.println(rangeString);
@@ -183,7 +183,7 @@ void loop() {
         } else if(recv_data[9] == 0x60) {
             int tagNo = getTagNo(&recv_data[12]);
             double range = static_cast<double>(DW1000NgUtils::bytesAsValue(&recv_data[10],2) / 1000.0);
-            String rangeReportString ="Tag short Address:  "; rangeString += tagList[tagNo].short_Addr;;
+            String rangeReportString ="Tag short Address:  "; rangeReportString += tagList[tagNo].short_Addr[0];
             rangeReportString += "\t Range from: "; rangeReportString += recv_data[7];
             rangeReportString += " = "; rangeReportString += range;
             Serial.println(rangeReportString);
