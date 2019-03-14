@@ -32,10 +32,10 @@ struct tagInfo{
     double y = 0;
 
     void transimitPosReport() {
-        byte positionReport[] ={DATA,SHORT_SRC_AND_DEST, DW1000NgRTLS::increaseSequenceNumber(), 0,0, 0,0, 0,0, cmd*** , 0,0, 0,0, 0,0, 0,0, 0,0};
-        DW1000Ng::getNetworkId(&rangingReport[3]);
+        byte positionReport[] ={DATA,SHORT_SRC_AND_DEST, DW1000NgRTLS::increaseSequenceNumber(), 0,0, 0,0, 0,0, 0x33 , 0,0, 0,0, 0,0, 0,0, 0,0};
+        DW1000Ng::getNetworkId(&positionReport[3]);
         memcpy(&positionReport[5], short_Addr , 2);
-        DW1000Ng::getDeviceAddress(&rangingReport[7]);
+        DW1000Ng::getDeviceAddress(&positionReport[7]);
         DW1000NgUtils::writeValueToBytes(&positionReport[10], static_cast<uint16_t>((range_A*1000)), 2);
         DW1000NgUtils::writeValueToBytes(&positionReport[12], static_cast<uint16_t>((range_B*1000)), 2);
         DW1000NgUtils::writeValueToBytes(&positionReport[14], static_cast<uint16_t>((range_C*1000)), 2);

@@ -101,7 +101,7 @@ void transmitRangeReport(uint16_t tag_short_addr) {
     memcpy(&rangingReport[5], main_anchor_address, 2);
     DW1000Ng::getDeviceAddress(&rangingReport[7]);
     DW1000NgUtils::writeValueToBytes(&rangingReport[10], static_cast<uint16_t>((range_self*1000)), 2);
-    //todo:add the short address of the tag to the message at rangingReport[12];
+    //add the short address of the tag to the message at rangingReport[12];
     DW1000NgUtils::writeValueToBytes(&rangingReport[12], tag_short_addr, 2);
     DW1000Ng::setTransmitData(rangingReport, sizeof(rangingReport));
     DW1000Ng::startTransmit();
